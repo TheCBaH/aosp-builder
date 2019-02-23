@@ -1,0 +1,27 @@
+FROM ubuntu:18.04
+RUN set -eux;\
+ apt-get update; apt-get install -y \
+ bison \
+ build-essential \
+ ccache \
+ curl \
+ flex \
+ gcc-multilib \
+ git-core \
+ g++-multilib \
+ gnupg \
+ gperf \
+ lib32ncurses5-dev \
+ lib32z-dev \
+ libc6-dev-i386 \
+ libgl1-mesa-dev \
+ libx11-dev \
+ libxml2-utils \
+ python \
+ unzip \
+ x11proto-core-dev \
+ xsltproc \
+ zip \
+ zlib1g-dev \
+    ;apt-get clean;rm -rf /var/lib/apt/lists/*;\
+    echo DONE

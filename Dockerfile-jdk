@@ -1,0 +1,7 @@
+ARG branch
+FROM aosp:$branch
+ARG jdk
+RUN set -eux;\
+ apt-get update; apt-get install -y openjdk-$jdk-jdk; \
+ apt-get clean; rm -rf /var/lib/apt/lists/*;\
+ echo DONE
