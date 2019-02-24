@@ -8,7 +8,7 @@ BUILD_JOBS?=$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 MIRROR=/home/${USER}/aosp/mirror/
 SOURCE=/home/${USER}/source
 INIT_MANIFEST=${MIRROR}/platform/manifest.git
-ORIGIN=https://android.googlesource.com/mirror/manifest
+ORIGIN=https://android.googlesource.com/platform/manifest
 
 linux:
 	docker build -f Dockerfile-linux -t aosp:linux .
@@ -22,7 +22,8 @@ mirror.master: user
 	-docker volume create aosp_$(subst .,-,$@) 
 	docker run -it --rm --name aosp_$@ -v aosp_$(subst .,-,$@):${MIRROR} aosp:$< bash -euxc \
 		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
-		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} --mirror;time repo sync --current-branch --no-clone-bundle -j${SYNC_JOBS}'"
+		'export HOME=/home/${USER};id;cd ${MIRROR};[ -d .repo ] || repo init -u ${ORIGIN} --mirror \
+		;time repo sync -j${SYNC_JOBS}'"
 
 ccache: user
 	-docker volume create aosp_$@
@@ -47,8 +48,7 @@ test: user
 master: user
 	-docker container kill aosp_$@;
 	-docker container rm aosp_$@;
-	docker run -it --name aosp_$@ \
-	-v /home/${USER}/aosp:/home/${USER}/aosp:ro \
+	docker run -it --name aosp_$@ -v  aosp_mirror-master:${MIRROR}:ro \
 	aosp:$< build -c 'set -aux;cd ~;mkdir -p ${SOURCE};cd ${SOURCE};\
 	git config --global color.ui false;\
 	repo init -u ${INIT_MANIFEST} --reference=${MIRROR} -b $@;\
@@ -64,11 +64,11 @@ master.update:
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(basename $@)
 	docker container rm aosp_$(subst .,-,$@)
 
-rnn.master:
+run.master:
 	docker run --rm -it --name aosp_$(subst .,-,$@) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
 	aosp:$(subst .,,$(suffix $@)) bash -i
 
 build.master:
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
    	-v ${SOURCE}/out -v aosp_ccache:/ccache \
-	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm-eng && time make -j${BUILD_JOBS}'
+	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
