@@ -9,8 +9,10 @@ if [ $# -ge 1 ]; then
         export HOME
         USER=$username
         export USER
-        mv /root/.gitconfig /home/$username/
+        source=/home/$USER/source
+        cp /root/.gitconfig /home/$username/
         chown $username /home/$username/.gitconfig
+        [ -d $source/out ] && chown $username $source/out
         exec chroot --userspec=$username:$(cat /root/username) / /bin/bash -i "$@"
     fi
 fi

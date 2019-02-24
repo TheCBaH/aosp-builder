@@ -4,7 +4,9 @@ UID:=$(shell expr $$(id -u) - ${ID_OFFSET})
 GID:=$(shell expr $$(id -g) - ${ID_OFFSET})
 USER:=$(shell id -un)
 JOBS=4
+BUILD_JOBS=16
 MIRROR=/home/${USER}/aosp/mirror/
+SOURCE=/home/${USER}/source
 INIT_MANIFEST=${MIRROR}/platform/manifest.git
 ORIGIN=https://android.googlesource.com/mirror/manifest
 
@@ -18,9 +20,18 @@ user: linux
 
 mirror: user
 	-docker volume create aosp_mirror
-	docker run -it --rm --name aosp_mirror -v aosp_mirror:${MIRROR} --entrypoint "/bin/bash" aosp:$< -c \
+	docker run -it --rm --name aosp_$@ -v aosp_mirror:${MIRROR} --entrypoint "/bin/bash" aosp:$< -c \
 		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
 		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} --mirror;time repo sync -j${JOBS}'"
+
+ccache: user
+	-docker volume create aosp_$@
+	docker run -it --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
+		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M512G'
+
+ccache.stats: user
+	docker run -it --rm --name $(subst .,-,$@) -v aosp_ccache:/ccache aosp:$< bash -exc \
+		'env CCACHE_DIR=/ccache ccache -s'
 
 run: user
 	docker run -it --rm aosp:$<
@@ -38,8 +49,25 @@ master: user
 	-docker container rm aosp_$@;
 	docker run -it --name aosp_$@ \
 	-v /home/${USER}/aosp:/home/${USER}/aosp:ro \
-	aosp:$< build -c 'set -aux;cd ~;mkdir source;cd source;\
+	aosp:$< build -c 'set -aux;cd ~;mkdir -p ${SOURCE};cd ${SOURCE};\
 	git config --global color.ui false;\
 	repo init -u ${INIT_MANIFEST} --reference=${MIRROR} -b $@;\
 	time repo sync -c --no-clone-bundle --no-tags -j${JOBS};\
 	echo DONE'
+	docker commit --change='CMD "build"' apsp_$@  aosp:$@
+	docker container rm aosp_$@;
+
+master.update:
+	-docker container kill aosp_$(subst .,-,$@)
+	-docker container rm aosp_$(subst .,-,$@)
+	docker run -it --name aosp_$(subst .,-,$@) -v/home:/home_root aosp:$(basename $@) bash -i
+	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(basename $@)
+	docker container rm aosp_$(subst .,-,$@)
+
+rnn.master:
+	docker run --rm -it --name aosp_$(subst .,-,$@) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+	aosp:$(subst .,,$(suffix $@)) bash -i
+
+build.master:
+	docker run --rm -it --name aosp_$(subst .,-,$@) -v ${SOURCE}/out \
+	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm-eng && make -j${BUILD_JOBS}'
