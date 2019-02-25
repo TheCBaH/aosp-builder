@@ -5,9 +5,9 @@ GID:=$(shell expr $$(id -g) - ${ID_OFFSET})
 USER:=$(shell id -un)
 SYNC_JOBS?=4
 BUILD_JOBS?=$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
-MIRROR=/home/${USER}/aosp/mirror/
+MIRROR=/home/${USER}/aosp/mirror
 SOURCE=/home/${USER}/source
-INIT_MANIFEST=${MIRROR}/platform/manifest.git
+MIRROR_MANIFEST=${MIRROR}/platform/manifest.git
 ORIGIN=https://android.googlesource.com/platform/manifest
 
 linux:
@@ -40,7 +40,7 @@ run: user
 test: user
 	docker run -it --rm \
 	-v /home/${USER}/aosp:/home/${USER}/aosp:ro \
-	aosp:$< build -c 'set -aux;cd ~;mkdir source;cd source;\
+	aosp:$< build -c 'set -eux;cd ~;mkdir source;cd source;\
 	git config --global color.ui false;\
 	repo init -u ${MIRROR};\
 	echo'
@@ -49,12 +49,12 @@ master: user
 	-docker container kill aosp_$@;
 	-docker container rm aosp_$@;
 	docker run -it --name aosp_$@ -v  aosp_mirror-master:${MIRROR}:ro \
-	aosp:$< build -c 'set -aux;cd ~;mkdir -p ${SOURCE};cd ${SOURCE};\
+	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	git config --global color.ui false;\
-	repo init -u ${INIT_MANIFEST} --reference=${MIRROR} -b $@;\
+	repo init -u ${MIRROR_MANIFEST} --reference=${MIRROR} -b $@;\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
-	docker commit --change='CMD "build"' apsp_$@  aosp:$@
+	docker commit --change='CMD "build"' aosp_$@  aosp:$@
 	docker container rm aosp_$@;
 
 master.update:
@@ -72,3 +72,15 @@ build.master:
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
    	-v ${SOURCE}/out -v aosp_ccache:/ccache \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
+
+image.pie-release:
+	-docker container kill aosp_$(subst .,-,$@)
+	-docker container rm aosp_$(subst .,-,$@)
+	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
+	aosp:master build -c 'set -eux;cd ${SOURCE};\
+	git config --global color.ui false;\
+	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
+	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
+	echo DONE'
+	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
+	docker container rm aosp_$(subst .,-,$@)
