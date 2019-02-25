@@ -65,6 +65,20 @@ image.master: user
 	docker container rm aosp_$(subst .,-,$@)
 	touch done-$@
 
+image-new.master: user
+	-docker container kill aosp_$(subst .,-,$@)
+	-docker container rm aosp_$(subst .,-,$@)
+	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-new-master:${MIRROR}:ro \
+	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
+	git config --global color.ui false;\
+	repo init -u ${ORIGIN} --reference=${MIRROR} ;\
+	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
+	time repo sync --local-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
+	echo DONE'
+	time docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
+	docker container rm aosp_$(subst .,-,$@)
+	touch done-$@
+
 master.update:
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
@@ -74,13 +88,14 @@ master.update:
 
 run.%:done-image.%
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
-	-v ${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
+	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; exec bash -i'
 
-build.%:done-image.%
+build.%:
+	echo $(basename $@)
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
-	-v ${SOURCE}/out -v aosp_ccache:/ccache \
-	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
+	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache \
+	aosp:$(subst .,,$(suffix $(basename $@))) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
 
 image.%:
 	-docker container kill aosp_$(subst .,-,$@)
@@ -97,6 +112,10 @@ image.%:
 	touch done-$@
 
 image.oreo-cts-dev: done-image.oreo-dev
+
+build_master: build.master.aosp_arm64  build.master.aosp_arm
+
+build_pie-release: build.pie-release.aosp_arm64  build.pie-release.aosp_arm
 
 clean:
 	rm done-*
