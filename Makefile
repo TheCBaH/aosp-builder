@@ -45,17 +45,19 @@ test: user
 	repo init -u ${MIRROR};\
 	echo'
 
-master: user
-	-docker container kill aosp_$@;
-	-docker container rm aosp_$@;
-	docker run -it --name aosp_$@ -v  aosp_mirror-master:${MIRROR}:ro \
+image.master: user
+	-docker container kill aosp_$(subst .,-,$@)
+	-docker container rm aosp_$(subst .,-,$@)
+	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	git config --global color.ui false;\
 	repo init -u ${MIRROR_MANIFEST} --reference=${MIRROR} -b $@;\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
-	docker commit --change='CMD "build"' aosp_$@  aosp:$@
+	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
+	docker container rm aosp_$(subst .,-,$@)
 	docker container rm aosp_$@;
+	touch done-$@
 
 master.update:
 	-docker container kill aosp_$(subst .,-,$@)
@@ -65,22 +67,53 @@ master.update:
 	docker container rm aosp_$(subst .,-,$@)
 
 run.master:
-	docker run --rm -it --name aosp_$(subst .,-,$@) --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
-	aosp:$(subst .,,$(suffix $@)) bash -i
+	docker run --rm -it --name aosp_$(subst .,-,$@) \
+	-v ${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
+	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; exec bash -i'
 
 build.master:
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
    	-v ${SOURCE}/out -v aosp_ccache:/ccache \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
 
-image.pie-release:
+
+image.pie-release:done-image.master
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
 	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:master build -c 'set -eux;cd ${SOURCE};\
+	aosp:$(subst .,,$(suffix $<)) build -c 'set -eux;cd ${SOURCE};\
 	git config --global color.ui false;\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
+	time repo sync -c --force-sync --no-clone-bundle --no-tags -j${SYNC_JOBS};\
+	find .-type l -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
+	echo DONE'
+	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
+	docker container rm aosp_$(subst .,-,$@)
+	touch $@
+
+image.oreo-release: image.pie-release
+	-docker container kill aosp_$(subst .,-,$@)
+	-docker container rm aosp_$(subst .,-,$@)
+	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
+	aosp:$(subst .,,$(suffix $<)) build -c 'set -eux;cd ${SOURCE};\
+	git config --global color.ui false;\
+	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
+	find . -type l -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
 	docker container rm aosp_$(subst .,-,$@)
+	touch $@
+
+build.pie-release:
+	docker run --rm -it --name aosp_$(subst .,-,$@) \
+	-v ${SOURCE}/out -v aosp_ccache:/ccache \
+	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
+
+run.pie-release:
+	docker run --rm -it --name aosp_$(subst .,-,$@) \
+	-v ${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
+	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; exec bash -i'
+
+clean:
+	rm done-*
