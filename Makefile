@@ -116,10 +116,31 @@ build.pie-release:
 	-v ${SOURCE}/out -v aosp_ccache:/ccache \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
 
-run.pie-release:
+run.%:done-image.%
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
 	-v ${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; exec bash -i'
+
+build.%:done-image.%
+	docker run --rm -it --name aosp_$(subst .,-,$@) \
+	-v ${SOURCE}/out -v aosp_ccache:/ccache \
+	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
+
+image.%:
+	-docker container kill aosp_$(subst .,-,$@)
+	-docker container rm aosp_$(subst .,-,$@)
+	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
+	aosp:$(subst .,,$(suffix $<)) build -c 'set -eux;cd ${SOURCE};\
+	git config --global color.ui false;\
+	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
+	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
+	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
+	echo DONE'
+	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
+	docker container rm aosp_$(subst .,-,$@)
+	touch done-$@
+
+image.oreo-cts-dev: done-image.oreo-dev
 
 clean:
 	rm done-*
