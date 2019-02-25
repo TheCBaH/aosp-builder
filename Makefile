@@ -18,24 +18,19 @@ user: linux
 	docker build --build-arg userid=${UID} --build-arg groupid=${GID} --build-arg username=${USER} -f Dockerfile-$@ -t aosp:$@ .
 	rm .gitconfig
 
-mirror-new.master: user
-	docker run -it --rm --name aosp_$@ -v aosp_mirror-master:${MIRROR}:ro -v aosp_$(subst .,-,$@):${MIRROR}.new aosp:$< bash -euxc \
-		"echo mkdir ${MIRROR}.new;chown ${USER} ${MIRROR}.new;exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
-		'export HOME=/home/${USER};id;cd ${MIRROR}.new;[ -d .repo ] || repo init -u ${MIRROR_MANIFEST} -b $(subst .,,$(suffix $@)) --reference=${MIRROR} --dissociate \
-		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
-
-
 mirror.master: user
 	-docker volume create aosp_$(subst .,-,$@) 
 	docker run -it --rm --name aosp_$@ -v aosp_$(subst .,-,$@):${MIRROR} aosp:$< bash -euxc \
 		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
-		'export HOME=/home/${USER};id;cd ${MIRROR};[ -d .repo ] || repo init -u ${ORIGIN} --mirror \
-		;time repo sync -j${SYNC_JOBS}'"
+		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} -b $(subst .,,$(suffix $@)) \
+		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
+	touch done-$@
 
 ccache: user
 	-docker volume create aosp_$@
 	docker run -it --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
 		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M1040'
+	touch done-$@
 
 ccache.stats: user
 	docker run -it --rm --name $(subst .,-,$@) -v aosp_ccache:/ccache:ro aosp:$< bash -exc \
@@ -55,22 +50,8 @@ test: user
 image.master: user
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
-	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
-	git config --global color.ui false;\
-	repo init -u ${MIRROR_MANIFEST} --reference=${MIRROR} ;\
-	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
-	echo DONE'
-	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
-	docker container rm aosp_$(subst .,-,$@)
-	touch done-$@
-
-image-new.master: user
-	-docker container kill aosp_$(subst .,-,$@)
-	-docker container rm aosp_$(subst .,-,$@)
 	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-new-master:${MIRROR}:ro \
 	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
-	git config --global color.ui false;\
 	repo init -u ${ORIGIN} --reference=${MIRROR} ;\
 	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	time repo sync --local-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
@@ -102,7 +83,6 @@ image.%:
 	-docker container rm aosp_$(subst .,-,$@)
 	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$(subst .,,$(suffix $<)) build -c 'set -eux;cd ${SOURCE};\
-	git config --global color.ui false;\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
