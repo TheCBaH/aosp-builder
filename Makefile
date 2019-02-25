@@ -7,7 +7,7 @@ SYNC_JOBS?=4
 BUILD_JOBS?=$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 MIRROR=/home/${USER}/aosp/mirror
 SOURCE=/home/${USER}/source
-MIRROR_MANIFEST=${MIRROR}/platform/manifest.git
+MIRROR_MANIFEST=${MIRROR}/platform/manifest
 ORIGIN=https://android.googlesource.com/platform/manifest
 
 linux:
@@ -28,7 +28,7 @@ mirror.master: user
 ccache: user
 	-docker volume create aosp_$@
 	docker run -it --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
-		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M512G'
+		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M1040'
 
 ccache.stats: user
 	docker run -it --rm --name $(subst .,-,$@) -v aosp_ccache:/ccache:ro aosp:$< bash -exc \
@@ -51,7 +51,7 @@ image.master: user
 	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	git config --global color.ui false;\
-	repo init -u ${MIRROR_MANIFEST} --reference=${MIRROR} -b $@;\
+	repo init -u ${MIRROR_MANIFEST} --reference=${MIRROR} ;\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
@@ -117,3 +117,8 @@ run.pie-release:
 
 clean:
 	rm done-*
+
+volumes:
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=/data/docker/aosp_mirror-master aosp_mirror-master  
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=/data/docker/aosp_ccache aosp_ccache
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=/data/docker/aosp_out  aosp_out

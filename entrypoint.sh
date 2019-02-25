@@ -12,7 +12,10 @@ if [ $# -ge 1 ]; then
         source=/home/$USER/source
         cp /root/.gitconfig /home/$username/
         chown $username /home/$username/.gitconfig
-        [ -d $source/out ] && chown $username $source/out
+        if [ -d $source/out ]; then
+            chown $username $source/out
+            rm -rf $source/out/*
+        fi
         if [ -d /ccache ]; then 
             CCACHE_DIR=/ccache
             USE_CCACHE=1
