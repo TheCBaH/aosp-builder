@@ -18,6 +18,13 @@ user: linux
 	docker build --build-arg userid=${UID} --build-arg groupid=${GID} --build-arg username=${USER} -f Dockerfile-$@ -t aosp:$@ .
 	rm .gitconfig
 
+mirror-new.master: user
+	docker run -it --rm --name aosp_$@ -v aosp_mirror-master:${MIRROR}:ro -v aosp_$(subst .,-,$@):${MIRROR}.new aosp:$< bash -euxc \
+		"echo mkdir ${MIRROR}.new;chown ${USER} ${MIRROR}.new;exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
+		'export HOME=/home/${USER};id;cd ${MIRROR}.new;[ -d .repo ] || repo init -u ${MIRROR_MANIFEST} -b $(subst .,,$(suffix $@)) --reference=${MIRROR} --dissociate \
+		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
+
+
 mirror.master: user
 	-docker volume create aosp_$(subst .,-,$@) 
 	docker run -it --rm --name aosp_$@ -v aosp_$(subst .,-,$@):${MIRROR} aosp:$< bash -euxc \
@@ -56,7 +63,6 @@ image.master: user
 	echo DONE'
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
 	docker container rm aosp_$(subst .,-,$@)
-	docker container rm aosp_$@;
 	touch done-$@
 
 master.update:
@@ -73,7 +79,7 @@ run.master:
 
 build.master:
 	docker run --rm -it --name aosp_$(subst .,-,$@) \
-   	-v ${SOURCE}/out -v aosp_ccache:/ccache \
+	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch aosp_arm64-eng && time make -j${BUILD_JOBS}'
 
 
@@ -85,25 +91,25 @@ image.pie-release:done-image.master
 	git config --global color.ui false;\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
 	time repo sync -c --force-sync --no-clone-bundle --no-tags -j${SYNC_JOBS};\
-	find .-type l -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
+	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
 	docker container rm aosp_$(subst .,-,$@)
-	touch $@
+	touch done-$@
 
-image.oreo-release: image.pie-release
+image.oreo-dev: done-image.pie-release
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
 	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$(subst .,,$(suffix $<)) build -c 'set -eux;cd ${SOURCE};\
 	git config --global color.ui false;\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
-	find . -type l -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
+	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
 	docker container rm aosp_$(subst .,-,$@)
-	touch $@
+	touch done-$@
 
 build.pie-release:
 	docker run --rm -it --name aosp_$(subst .,-,$@) \

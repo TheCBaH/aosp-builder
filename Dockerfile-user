@@ -16,5 +16,10 @@ RUN set -eux; \
     echo $username >/root/username; \
     echo DONE
 COPY entrypoint.sh .gitconfig /root/
+RUN set -eux; \
+	git config --global color.ui false; \
+    cp /root/.gitconfig /home/$username/; \
+    chown $userid:$groupid /home/$username/.gitconfig; \
+    echo DONE
 ENTRYPOINT ["/root/entrypoint.sh"]
 CMD ["build"]

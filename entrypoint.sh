@@ -10,8 +10,6 @@ if [ $# -ge 1 ]; then
         USER=$username
         export USER
         source=/home/$USER/source
-        cp /root/.gitconfig /home/$username/
-        chown $username /home/$username/.gitconfig
         if [ -d $source/out ]; then
             chown $username $source/out
             rm -rf $source/out/*
