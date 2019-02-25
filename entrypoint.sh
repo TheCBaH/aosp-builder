@@ -14,7 +14,7 @@ if [ $# -ge 1 ]; then
             chown $username $source/out
             rm -rf $source/out/*
         fi
-        if [ -d /ccache ]; then 
+        if [ -d /ccache ]; then
             CCACHE_DIR=/ccache
             USE_CCACHE=1
             CCACHE_EXEC=$(which ccache)
