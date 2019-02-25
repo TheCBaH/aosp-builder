@@ -50,7 +50,7 @@ test: user
 image.master: user
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
-	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-new-master:${MIRROR}:ro \
+	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} ;\
 	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
