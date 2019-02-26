@@ -22,7 +22,7 @@ if [ $# -ge 1 ]; then
             export USE_CCACHE
             export CCACHE_EXEC
         fi
-        exec chroot --userspec=$username:$(cat /root/username) / /bin/bash -i "$@"
+        exec chroot --userspec=$username:$(cat /root/username) / /bin/bash "$@"
     fi
 fi
 exec "$@"

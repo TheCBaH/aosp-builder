@@ -3,6 +3,7 @@ ID_OFFSET=10
 UID:=$(shell expr $$(id -u) - ${ID_OFFSET})
 GID:=$(shell expr $$(id -g) - ${ID_OFFSET})
 USER:=$(shell id -un)
+TERMINAL:=$(shell test -t 0 && echo t)
 SYNC_JOBS?=4
 BUILD_JOBS?=$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
 MIRROR=/home/${USER}/aosp/mirror
@@ -20,7 +21,7 @@ user: linux
 
 mirror.master: user
 	-docker volume create aosp_$(subst .,-,$@)
-	docker run -it --rm --name aosp_$@ -v aosp_$(subst .,-,$@):${MIRROR} aosp:$< bash -euxc \
+	docker run -i${TERMINAL} --rm --name aosp_$@ -v aosp_$(subst .,-,$@):${MIRROR} aosp:$< bash -euxc \
 		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
 		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} -b $(subst .,,$(suffix $@)) \
 		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
@@ -28,19 +29,19 @@ mirror.master: user
 
 ccache: user
 	-docker volume create aosp_$@
-	docker run -it --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
+	docker run -i${TERMINAL} --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
 		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M104G'
 	touch done-$@
 
 ccache.stats: user
-	docker run -it --rm --name $(subst .,-,$@) -v aosp_ccache:/ccache:ro aosp:$< bash -exc \
+	docker run -i${TERMINAL} --rm --name $(subst .,-,$@) -v aosp_ccache:/ccache:ro aosp:$< bash -exc \
 		'env CCACHE_DIR=/ccache ccache -s'
 
 run: user
-	docker run -it --rm aosp:$<
+	docker run -i${TERMINAL} --rm aosp:$<
 
 test: user
-	docker run -it --rm \
+	docker run -i${TERMINAL} --rm \
 	-v /home/${USER}/aosp:/home/${USER}/aosp:ro \
 	aosp:$< build -c 'set -eux;cd ~;mkdir source;cd source;\
 	git config --global color.ui false;\
@@ -50,7 +51,7 @@ test: user
 image.master: user
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
-	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
+	docker run -i${TERMINAL} --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} ;\
 	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
@@ -63,25 +64,25 @@ image.master: user
 master.update:
 	-docker container kill aosp_$(subst .,-,$@)
 	-docker container rm aosp_$(subst .,-,$@)
-	docker run -it --name aosp_$(subst .,-,$@) -v/home:/home_root aosp:$(basename $@) bash -i
+	docker run -i${TERMINAL} --name aosp_$(subst .,-,$@) -v/home:/home_root aosp:$(basename $@) bash -i
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(basename $@)
 	docker container rm aosp_$(subst .,-,$@)
 
 run.%:done-image.%
-	docker run --rm -it --name aosp_$(subst .,-,$@) \
+	docker run --rm -i${TERMINAL} --name aosp_$(subst .,-,$@) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; exec bash -i'
 
 build.%:
 	echo $(basename $@)
-	docker run --rm -it --name aosp_$(subst .,-,$@) \
+	docker run --rm -i${TERMINAL} --name aosp_$(subst .,-,$@) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache \
 	aosp:$(subst .,,$(suffix $(basename $@))) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
 
 image.%:
 	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
 	-docker container rm aosp_$(subst +,-,$(subst .,-,$@))
-	docker run -it --name aosp_$(subst +,-,$(subst .,-,$@)) -v aosp_mirror-master:${MIRROR}:ro \
+	docker run -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) -v aosp_mirror-master:${MIRROR}:ro \
 	aosp:$(subst +,-,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst +,.,$(subst .,,$(suffix $@)));\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
