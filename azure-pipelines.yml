@@ -1,0 +1,27 @@
+# https://aka.ms/yaml
+
+trigger:
+- master
+- devel
+
+
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+steps:
+- script: |
+   set -eux
+   docker info
+   make ccache
+   make mirror-master
+  displayName: 'Setting up mirror'
+
+- script: |
+    set -eux
+    make image-masters
+  displayName: 'Build Image'
+
+- script:  |
+    set -eux
+    make build-master
+  displayName: 'build master'
