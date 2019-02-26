@@ -29,7 +29,7 @@ mirror.master: user
 ccache: user
 	-docker volume create aosp_$@
 	docker run -it --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
-		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M1040'
+		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M104G'
 	touch done-$@
 
 ccache.stats: user
@@ -79,23 +79,31 @@ build.%:
 	aosp:$(subst .,,$(suffix $(basename $@))) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
 
 image.%:
-	-docker container kill aosp_$(subst .,-,$@)
-	-docker container rm aosp_$(subst .,-,$@)
-	docker run -it --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:$(subst .,,$(suffix $<)) build -c 'set -eux;cd ${SOURCE};\
-	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst .,,$(suffix $@));\
+	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
+	-docker container rm aosp_$(subst +,-,$(subst .,-,$@))
+	docker run -it --name aosp_$(subst +,-,$(subst .,-,$@)) -v aosp_mirror-master:${MIRROR}:ro \
+	aosp:$(subst +,-,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
+	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst +,.,$(subst .,,$(suffix $@)));\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
-	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
-	docker container rm aosp_$(subst .,-,$@)
-	touch done-$@
+	docker commit --change='CMD "build"' aosp_$(subst +,-,$(subst .,-,$@)) aosp:$(subst +,-,$(subst .,,$(suffix $@)))
+	docker container rm aosp_$(subst +,-,$(subst .,-,$@))
+	touch done-$
 
+java.8.oreo-dev:
+	docker build --build-arg branch=$(subst .,,$(suffix $@)) --build-arg jdk=$(subst .,,$(suffix $(basename $@))) -f Dockerfile-jdk -t aosp:$(subst .,,$(suffix $@)) .
+
+image.pie-release: done-image.master
+image.oreo-dev: done-image.pie-release
 image.oreo-cts-dev: done-image.oreo-dev
+image.android-8+1+0_r53: done-image.oreo-dev
 
 build_master: build.master.aosp_arm64  build.master.aosp_arm
 
 build_pie-release: build.pie-release.aosp_arm64  build.pie-release.aosp_arm
+
+build_oreo-dev: build.oreo-dev.aosp_x86 build.oreo-dev.aosp_arm64 build.oreo-dev.aosp_arm
 
 clean:
 	rm done-*
