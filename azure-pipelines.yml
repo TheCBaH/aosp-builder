@@ -14,15 +14,15 @@ steps:
    docker info
    git config --global user.name TheCBaH
    make ccache
-   make mirror-master
+   make mirror.master
   displayName: 'Setting up mirror'
 
 - script: |
     set -eux
-    make image-masters
+    make image.masters
   displayName: 'Build Image'
 
 - script:  |
     set -eux
-    make build-master
+    make build.master
   displayName: 'build master'
