@@ -1,0 +1,50 @@
+# https://aka.ms/yaml
+
+trigger:
+- master
+- devel
+
+jobs:
+  - job:  master
+    pool:
+        vmImage: 'Ubuntu-16.04'
+
+    variables:
+        system.debug: 'true'
+
+    displayName: 'Android Master'
+    timeoutInMinutes: 360
+    steps:
+        - script: |
+            set -eux
+            df -h
+            sudo fdisk -l
+            false
+            docker info
+            git config --global user.name TheCBaH
+            make ccache
+            make mirror.master
+          displayName: 'Setting up mirror'
+
+        - script: |
+            set -eux
+            make image.master
+          displayName: 'Build Image'
+
+        - script: |
+            set -eux
+            make build.master
+          displayName: 'build master'
+
+        - script: |
+            set -eux
+            make image.pie-release
+            make build_pie-release
+          displayName: 'build pie-release'
+
+        - script: |
+            set -eux
+            make image.oreo-dev
+            make java.8.oreo-dev
+            make build_oreo-dev
+          displayName: 'build  oreo-dev'
