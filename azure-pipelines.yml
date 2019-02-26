@@ -12,7 +12,7 @@ steps:
 - script: |
    set -eux
    docker info
-   git config --local user.name TheCBaH
+   git config --global user.name TheCBaH
    make ccache
    make mirror-master
   displayName: 'Setting up mirror'
