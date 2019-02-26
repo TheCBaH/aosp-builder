@@ -75,9 +75,9 @@ run.%:done-image.%
 
 build.%:
 	echo $(basename $@)
-	docker run --rm -i${TERMINAL} --name aosp_$(subst .,-,$@) \
+	docker run --rm -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache \
-	aosp:$(subst .,,$(suffix $(basename $@))) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
+	aosp:$(subst +,-,$(subst .,,$(suffix $(basename $@)))) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
 
 image.%:
 	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
@@ -105,6 +105,8 @@ build_master: build.master.aosp_arm64  build.master.aosp_arm
 build_pie-release: build.pie-release.aosp_arm64  build.pie-release.aosp_arm
 
 build_oreo-dev: build.oreo-dev.aosp_x86 build.oreo-dev.aosp_arm64 build.oreo-dev.aosp_arm
+
+build_android-8+1+0_r53:  build.image.android-8+1+0_r53.aosp_arm
 
 clean:
 	rm done-*
