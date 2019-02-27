@@ -8,7 +8,9 @@ trigger:
 pool:
   vmImage: 'Ubuntu-16.04'
 
-timeoutInMinutes: 360
+jobs:
+- job: Test
+    timeoutInMinutes: 360
 
 steps:
 - script: |
