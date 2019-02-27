@@ -1,5 +1,6 @@
 ARG branch
-FROM aosp:$branch
+ARG image
+FROM $image:$branch
 ARG jdk
 RUN set -eux;\
  apt-get update; apt-get install -y openjdk-$jdk-jdk; \

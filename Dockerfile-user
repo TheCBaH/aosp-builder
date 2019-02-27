@@ -1,4 +1,5 @@
-FROM aosp:linux
+ARG image
+FROM $image:linux
 ARG userid
 ARG groupid
 ARG username

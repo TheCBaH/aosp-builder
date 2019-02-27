@@ -10,97 +10,93 @@ MIRROR=/home/${USER}/aosp/mirror
 SOURCE=/home/${USER}/source
 MIRROR_MANIFEST=${MIRROR}/platform/manifest
 ORIGIN=https://android.googlesource.com/platform/manifest
+AOSP_VOLUME_DIR?=/data/docker
+AOSP_IMAGE?=aosp
+AOSP_PREFIX?=$(subst /,_,${AOSP_IMAGE})
 
 linux:
-	docker build -f Dockerfile-linux -t aosp:linux .
+	docker build -f Dockerfile-linux -t ${AOSP_IMAGE}:linux .
 
 user: linux
 	cp ~/.gitconfig .
-	docker build --build-arg userid=${UID} --build-arg groupid=${GID} --build-arg username=${USER} -f Dockerfile-$@ -t aosp:$@ .
+	docker build --build-arg userid=${UID} --build-arg image=${AOSP_IMAGE} --build-arg groupid=${GID} --build-arg username=${USER} -f Dockerfile-$@ -t ${AOSP_IMAGE}:$@ .
 	rm .gitconfig
 
 mirror.master: user
-	-docker volume create aosp_$(subst .,-,$@)
-	docker run -i${TERMINAL} --rm --name aosp_$@ -v aosp_$(subst .,-,$@):${MIRROR} aosp:$< bash -euxc \
+	-docker volume create ${AOSP_PREFIX}_$(subst .,-,$@)
+	docker run -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_$(subst .,-,$@):${MIRROR} ${AOSP_IMAGE}:$< bash -euxc \
 		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
 		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} -b $(subst .,,$(suffix $@)) \
 		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
 	touch done-$@
 
 ccache: user
-	-docker volume create aosp_$@
-	docker run -i${TERMINAL} --rm --name aosp_$@ -v aosp_ccache:/ccache aosp:$< bash -exc \
+	-docker volume create ${AOSP_PREFIX}_$@
+	docker run -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_ccache:/ccache ${AOSP_IMAGE}:$< bash -exc \
 		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M104G'
 	touch done-$@
 
 ccache.stats: user
-	docker run -i${TERMINAL} --rm --name $(subst .,-,$@) -v aosp_ccache:/ccache:ro aosp:$< bash -exc \
+	docker run -i${TERMINAL} --rm --name $(subst .,-,$@) -v ${AOSP_PREFIX}_ccache:/ccache:ro ${AOSP_IMAGE}:$< bash -exc \
 		'env CCACHE_DIR=/ccache ccache -s'
 
 run: user
-	docker run -i${TERMINAL} --rm aosp:$<
+	docker run -i${TERMINAL} --rm ${AOSP_IMAGE}:$<
 
-test: user
-	docker run -i${TERMINAL} --rm \
-	-v /home/${USER}/aosp:/home/${USER}/aosp:ro \
-	aosp:$< build -c 'set -eux;cd ~;mkdir source;cd source;\
-	git config --global color.ui false;\
-	repo init -u ${MIRROR};\
-	echo'
 
 image.master: user
-	-docker container kill aosp_$(subst .,-,$@)
-	-docker container rm aosp_$(subst .,-,$@)
-	docker run -i${TERMINAL} --name aosp_$(subst .,-,$@) -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
+	-docker container kill ${AOSP_PREFIX}_$(subst .,-,$@)
+	-docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
+	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	${AOSP_IMAGE}:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} ;\
 	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	time repo sync --local-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
-	time docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(subst .,,$(suffix $@))
-	docker container rm aosp_$(subst .,-,$@)
+	time docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst .,-,$@) ${AOSP_IMAGE}:$(subst .,,$(suffix $@))
+	docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
 	touch done-$@
 
 master.update:
-	-docker container kill aosp_$(subst .,-,$@)
-	-docker container rm aosp_$(subst .,-,$@)
-	docker run -i${TERMINAL} --name aosp_$(subst .,-,$@) -v/home:/home_root aosp:$(basename $@) bash -i
-	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(basename $@)
-	docker container rm aosp_$(subst .,-,$@)
+	-docker container kill ${AOSP_PREFIX}_$(subst .,-,$@)
+	-docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
+	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v/home:/home_root ${AOSP_IMAGE}:$(basename $@) bash -i
+	docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst .,-,$@) ${AOSP_IMAGE}:$(basename $@)
+	docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
 
 run.%:
-	docker run --rm -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) \
-	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:$(subst +,-,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
+	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) \
+	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
 
 build.%:
 	echo $(basename $@)
-	docker run --rm -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) \
-	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache \
-	aosp:$(subst +,-,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
+	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) \
+	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
+	${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
 
 image.%:
-	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
-	-docker container rm aosp_$(subst +,-,$(subst .,-,$@))
-	docker run -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:$(subst +,-,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
+	-docker container kill ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
+	-docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
+	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst +,.,$(subst .,,$(suffix $@)));\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
-	time docker commit --change='CMD "build"' aosp_$(subst +,-,$(subst .,-,$@)) aosp:$(subst +,-,$(subst .,,$(suffix $@)))
-	docker container rm aosp_$(subst +,-,$(subst .,-,$@))
+	time docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@)))
+	docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
 	touch done-$
 
 java.8.oreo-dev:
-	docker build --build-arg branch=$(subst .,,$(suffix $@)) --build-arg jdk=$(subst .,,$(suffix $(basename $@))) -f Dockerfile-jdk -t aosp:$(subst .,,$(suffix $@)) .
+	docker build --build-arg branch=$(subst .,,$(suffix $@)) --build-arg image=${AOSP_IMAGE} --build-arg jdk=$(subst .,,$(suffix $(basename $@))) -f Dockerfile-jdk -t ${AOSP_IMAGE}:$(subst .,,$(suffix $@)) .
 
 update.%:
-	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
-	-docker container rm aosp_$(subst +,-,$(subst .,-,$@))
-	docker run -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) -v/home:/home_root aosp:$(subst +,-,$(subst .,,$(suffix $@))) bash -i
-	docker commit --change='CMD "build"' aosp_$(subst +,-,$(subst .,-,$@)) aosp:$(subst +,-,$(subst .,,$(suffix $@)))
-	docker container rm aosp_$(subst +,-,$(subst .,-,$@))
+	-docker container kill ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
+	-docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
+	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) -v/home:/home_root ${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@))) bash -i
+	docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@)))
+	docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
 
 image.pie-release: done-image.master
 image.oreo-dev: done-image.pie-release
@@ -122,7 +118,9 @@ build_android-9+0+0_r33: build.android-9+0+0_r33.aosp_x86
 clean:
 	rm done-*
 
+test: user ccache mirror.master image.master build_master
+
 volumes:
-	docker volume create --driver local --opt type=bind --opt o=bind --opt device=/data/docker/aosp_mirror-master aosp_mirror-master
-	docker volume create --driver local --opt type=bind --opt o=bind --opt device=/data/docker/aosp_ccache aosp_ccache
-	docker volume create --driver local --opt type=bind --opt o=bind --opt device=/data/docker/aosp_out  aosp_out
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_mirror-master ${AOSP_PREFIX}_mirror-master
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_ccache
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out  ${AOSP_PREFIX}_out
