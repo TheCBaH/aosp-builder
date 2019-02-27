@@ -77,7 +77,7 @@ build.%:
 	echo $(basename $@)
 	docker run --rm -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache \
-	aosp:$(subst +,-,$(subst .,,$(suffix $(basename $@)))) build -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
+	aosp:$(subst +,-,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
 
 image.%:
 	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
