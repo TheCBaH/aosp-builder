@@ -8,6 +8,8 @@ trigger:
 pool:
   vmImage: 'Ubuntu-16.04'
 
+timeoutInMinutes: 360
+
 steps:
 - script: |
    set -eux
