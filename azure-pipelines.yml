@@ -9,34 +9,40 @@ pool:
   vmImage: 'Ubuntu-16.04'
   timeoutInMinutes: 360
 
-steps:
-- script: |
-   set -eux
-   docker info
-   git config --global user.name TheCBaH
-   make ccache
-   make mirror.master
-  displayName: 'Setting up mirror'
+variables:
+  system.debug: 'true'
 
-- script: |
-    set -eux
-    make image.master
-  displayName: 'Build Image'
+- job: master
+  displayName: 'Androind Master'
+  timeoutInMinutes: 360
+  steps:
+      - script: |
+          set -eux
+          docker info
+          git config --global user.name TheCBaH
+          make ccache
+          make mirror.master
+        displayName: 'Setting up mirror'
 
-- script:  |
-    set -eux
-    make build.master
-  displayName: 'build master'
+      - script: |
+          set -eux
+          make image.master
+        displayName: 'Build Image'
 
-- script:  |
-    set -eux
-    make image.pie-release
-    make build_pie-release
-  displayName: 'build pie-release'
+      - script:  |
+        set -eux
+        make build.master
+        displayName: 'build master'
 
-- script:  |
-    set -eux
-    make image.oreo-dev
-    make java.8.oreo-dev
-    make build_oreo-dev
-  displayName: 'build  oreo-dev'
+      - script:  |
+        set -eux
+        make image.pie-release
+        make build_pie-release
+        displayName: 'build pie-release'
+
+      - script:  |
+        set -eux
+        make image.oreo-dev
+        make java.8.oreo-dev
+        make build_oreo-dev
+        displayName: 'build  oreo-dev'
