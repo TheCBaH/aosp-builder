@@ -30,20 +30,20 @@ jobs:
             make image.master
           displayName: 'Build Image'
 
-        - script:  |
-          set -eux
-          make build.master
+        - script: |
+            set -eux
+            make build.master
           displayName: 'build master'
 
-        - script:  |
-          set -eux
-          make image.pie-release
-          make build_pie-release
+        - script: |
+            set -eux
+            make image.pie-release
+            make build_pie-release
           displayName: 'build pie-release'
 
-        - script:  |
-          set -eux
-          make image.oreo-dev
-          make java.8.oreo-dev
-          make build_oreo-dev
+        - script: |
+            set -eux
+            make image.oreo-dev
+            make java.8.oreo-dev
+            make build_oreo-dev
           displayName: 'build  oreo-dev'
