@@ -87,7 +87,7 @@ image.%:
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
-	docker commit --change='CMD "build"' aosp_$(subst +,-,$(subst .,-,$@)) aosp:$(subst +,-,$(subst .,,$(suffix $@)))
+	time docker commit --change='CMD "build"' aosp_$(subst +,-,$(subst .,-,$@)) aosp:$(subst +,-,$(subst .,,$(suffix $@)))
 	docker container rm aosp_$(subst +,-,$(subst .,-,$@))
 	touch done-$
 
