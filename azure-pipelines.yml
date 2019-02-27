@@ -19,6 +19,7 @@ jobs:
             set -eux
             df -h
             sudo fdisk -l
+            false
             docker info
             git config --global user.name TheCBaH
             make ccache
