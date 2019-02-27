@@ -68,10 +68,10 @@ master.update:
 	docker commit --change='CMD "build"' aosp_$(subst .,-,$@) aosp:$(basename $@)
 	docker container rm aosp_$(subst .,-,$@)
 
-run.%:done-image.%
-	docker run --rm -i${TERMINAL} --name aosp_$(subst .,-,$@) \
+run.%:
+	docker run --rm -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v aosp_ccache:/ccache -v aosp_mirror-master:${MIRROR}:ro \
-	aosp:$(subst .,,$(suffix $@)) build -c 'cd ${SOURCE}; exec bash -i'
+	aosp:$(subst +,-,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
 
 build.%:
 	echo $(basename $@)
@@ -94,6 +94,13 @@ image.%:
 
 java.8.oreo-dev:
 	docker build --build-arg branch=$(subst .,,$(suffix $@)) --build-arg jdk=$(subst .,,$(suffix $(basename $@))) -f Dockerfile-jdk -t aosp:$(subst .,,$(suffix $@)) .
+
+update.%:
+	-docker container kill aosp_$(subst +,-,$(subst .,-,$@))
+	-docker container rm aosp_$(subst +,-,$(subst .,-,$@))
+	docker run -i${TERMINAL} --name aosp_$(subst +,-,$(subst .,-,$@)) -v/home:/home_root aosp:$(subst +,-,$(subst .,,$(suffix $@))) bash -i
+	docker commit --change='CMD "build"' aosp_$(subst +,-,$(subst .,-,$@)) aosp:$(subst +,-,$(subst .,,$(suffix $@)))
+	docker container rm aosp_$(subst +,-,$(subst .,-,$@))
 
 image.pie-release: done-image.master
 image.oreo-dev: done-image.pie-release
