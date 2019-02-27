@@ -17,6 +17,8 @@ jobs:
     steps:
         - script: |
             set -eux
+            df -h
+            sudo fdisk -l
             docker info
             git config --global user.name TheCBaH
             make ccache
