@@ -99,14 +99,18 @@ image.pie-release: done-image.master
 image.oreo-dev: done-image.pie-release
 image.oreo-cts-dev: done-image.oreo-dev
 image.android-8+1+0_r53: done-image.oreo-dev
+image.android-9+0+0_r33: done-image.pie-release
 
 build_master: build.master.aosp_arm64  build.master.aosp_arm
 
-build_pie-release: build.pie-release.aosp_arm64  build.pie-release.aosp_arm
+build_pie-release: build.pie-release.aosp_x86 build.pie-release.aosp_arm64  build.pie-release.aosp_arm
 
 build_oreo-dev: build.oreo-dev.aosp_x86 build.oreo-dev.aosp_arm64 build.oreo-dev.aosp_arm
 
-build_android-8+1+0_r53:  build.image.android-8+1+0_r53.aosp_arm
+build_android-8+1+0_r53: build.android-8+1+0_r53.aosp_arm
+
+build_android-9+0+0_r33: build.android-9+0+0_r33.aosp_x86
+
 
 clean:
 	rm done-*
