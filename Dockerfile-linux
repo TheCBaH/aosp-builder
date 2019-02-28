@@ -6,15 +6,18 @@ RUN set -eux;\
  ccache \
  curl \
  flex \
+ g++-multilib \
  gcc-multilib \
  git-core \
- g++-multilib \
  gnupg \
  gperf \
  lib32ncurses5-dev \
  lib32z-dev \
  libc6-dev-i386 \
  libgl1-mesa-dev \
+ libpulse0 \
+ libqt5gui5 \
+ libqt5svg5 \
  libx11-dev \
  libxml2-utils \
  python \
