@@ -65,38 +65,38 @@ master.update:
 	docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
 
 run.%:
-	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) \
+	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
-	${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
+	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
 
 build.%:
 	echo $(basename $@)
-	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) \
+	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
-	${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time make -j${BUILD_JOBS}'
+	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time nice make -j${BUILD_JOBS}'
 
 image.%:
-	-docker container kill ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
-	-docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
-	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
-	${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
+	-docker container kill ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
+	-docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
+	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst +,.,$(subst .,,$(suffix $@)));\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
-	time docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@)))
-	docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
-	touch done-$
+	time docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@)))
+	docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
+	touch done-$@
 
 java.8.oreo-dev:
 	docker build --build-arg branch=$(subst .,,$(suffix $@)) --build-arg image=${AOSP_IMAGE} --build-arg jdk=$(subst .,,$(suffix $(basename $@))) -f Dockerfile-jdk -t ${AOSP_IMAGE}:$(subst .,,$(suffix $@)) .
 
 update.%:
-	-docker container kill ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
-	-docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
-	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) -v/home:/home_root ${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@))) bash -i
-	docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,-,$(subst .,,$(suffix $@)))
-	docker container rm ${AOSP_PREFIX}_$(subst +,-,$(subst .,-,$@))
+	-docker container kill ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
+	-docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
+	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) -v/home:/home_root ${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@))) bash -i
+	docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@)))
+	docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
 
 image.pie-release: done-image.master
 image.oreo-dev: done-image.pie-release
