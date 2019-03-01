@@ -13,6 +13,7 @@ ORIGIN=https://android.googlesource.com/platform/manifest
 AOSP_VOLUME_DIR?=/data/docker
 AOSP_IMAGE?=aosp
 AOSP_PREFIX?=$(subst /,_,${AOSP_IMAGE})
+RUN_ARGS?=${BUILD_ARGS}
 
 linux:
 	docker build -f Dockerfile-linux -t ${AOSP_IMAGE}:linux .
@@ -24,7 +25,7 @@ user: linux
 
 mirror.master: user
 	-docker volume create ${AOSP_PREFIX}_$(subst .,-,$@)
-	docker run -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_$(subst .,-,$@):${MIRROR} ${AOSP_IMAGE}:$< bash -euxc \
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_$(subst .,-,$@):${MIRROR} ${AOSP_IMAGE}:$< bash -euxc \
 		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
 		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} -b $(subst .,,$(suffix $@)) \
 		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
@@ -32,22 +33,22 @@ mirror.master: user
 
 ccache: user
 	-docker volume create ${AOSP_PREFIX}_$@
-	docker run -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_ccache:/ccache ${AOSP_IMAGE}:$< bash -exc \
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_ccache:/ccache ${AOSP_IMAGE}:$< bash -exc \
 		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M104G'
 	touch done-$@
 
 ccache.stats: user
-	docker run -i${TERMINAL} --rm --name $(subst .,-,$@) -v ${AOSP_PREFIX}_ccache:/ccache:ro ${AOSP_IMAGE}:$< bash -exc \
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name $(subst .,-,$@) -v ${AOSP_PREFIX}_ccache:/ccache:ro ${AOSP_IMAGE}:$< bash -exc \
 		'env CCACHE_DIR=/ccache ccache -s'
 
 run: user
-	docker run -i${TERMINAL} --rm ${AOSP_IMAGE}:$<
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm ${AOSP_IMAGE}:$<
 
 
 image.master: user
 	-docker container kill ${AOSP_PREFIX}_$(subst .,-,$@)
 	-docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
-	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
 	${AOSP_IMAGE}:$< build -c 'set -eux;mkdir -p ${SOURCE};cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} ;\
 	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
@@ -60,30 +61,30 @@ image.master: user
 master.update:
 	-docker container kill ${AOSP_PREFIX}_$(subst .,-,$@)
 	-docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
-	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v/home:/home_root ${AOSP_IMAGE}:$(basename $@) bash -i
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v/home:/home_root ${AOSP_IMAGE}:$(basename $@) bash -i
 	docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst .,-,$@) ${AOSP_IMAGE}:$(basename $@)
 	docker container rm ${AOSP_PREFIX}_$(subst .,-,$@)
 
 run.%:
-	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
+	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
 	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
 
 emulator.%:
-	docker run --device /dev/kvm -v /tmp/.X11-unix:/tmp/.X11-unix --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
+	docker run ${DOCKER_RUN_ARGS} --device /dev/kvm -v /tmp/.X11-unix:/tmp/.X11-unix --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
 	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build --clean 0 -c \
 	'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && env DISPLAY=${DISPLAY} emulator -verbose -no-snapshot -show-kernel -noaudio ${EMULATOR_ARGS}'
 
 build.%:
-	docker run --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
+	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
 	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time nice make -j${BUILD_JOBS}'
 
 image.%:
 	-docker container kill ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
 	-docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
-	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
 	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $<))) build -c 'set -eux;cd ${SOURCE};\
 	repo init -u ${ORIGIN} --reference=${MIRROR} -b $(subst +,.,$(subst .,,$(suffix $@)));\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
@@ -99,7 +100,7 @@ java.8.oreo-dev:
 update.%:
 	-docker container kill ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
 	-docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
-	docker run -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) -v/home:/home_root ${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@))) bash -i
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) -v/home:/home_root ${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@))) bash -i
 	docker commit --change='CMD "build"' ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) ${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@)))
 	docker container rm ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
 
