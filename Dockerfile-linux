@@ -21,6 +21,7 @@ RUN set -eux;\
  libx11-dev \
  libxml2-utils \
  python \
+ python3 \
  unzip \
  x11proto-core-dev \
  xsltproc \

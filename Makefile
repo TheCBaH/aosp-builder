@@ -14,6 +14,7 @@ AOSP_VOLUME_DIR?=/data/docker
 AOSP_IMAGE?=aosp
 AOSP_PREFIX?=$(subst /,_,${AOSP_IMAGE})
 RUN_ARGS?=${BUILD_ARGS}
+CCACHE_CONFIG=--max-size=104G --set-config=compression=true
 
 linux:
 	docker build -f Dockerfile-linux -t ${AOSP_IMAGE}:linux .
@@ -34,12 +35,20 @@ mirror.master: user
 ccache: user
 	-docker volume create ${AOSP_PREFIX}_$@
 	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_ccache:/ccache ${AOSP_IMAGE}:$< bash -exc \
-		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache -M104G'
+		'chown ${USER}:${GID} /ccache ;env CCACHE_DIR=/ccache ccache --cleanup  ${CCACHE_CONFIG}'
 	touch done-$@
 
 ccache.stats: user
 	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name $(subst .,-,$@) -v ${AOSP_PREFIX}_ccache:/ccache:ro ${AOSP_IMAGE}:$< bash -exc \
-		'env CCACHE_DIR=/ccache ccache -s'
+		'env CCACHE_DIR=/ccache ccache --show-stats'
+
+ccache.clear: user
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name $(subst .,-,$@) -v ${AOSP_PREFIX}_ccache:/ccache ${AOSP_IMAGE}:$< bash -exc \
+		'env CCACHE_DIR=/ccache ccache --clear'
+
+ccache.config: user
+	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name $(subst .,-,$@) -v ${AOSP_PREFIX}_ccache:/ccache ${AOSP_IMAGE}:$< bash -exc \
+		'env CCACHE_DIR=/ccache ccache ${CCACHE_CONFIG} --print-config'
 
 run: user
 	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm ${AOSP_IMAGE}:$<
