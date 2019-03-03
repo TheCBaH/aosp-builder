@@ -5,7 +5,7 @@ if [ $# -ge 1 ]; then
     if [ $1 = build ]; then
         shift;
         ccache=y
-        clean=y
+        clean=n
 
         while true; do
             if [ $# -eq 0 ]; then
@@ -33,10 +33,10 @@ if [ $# -ge 1 ]; then
         USER=$username
         export USER
         source=/home/$USER/source
-        if [ _$clean = _1 -o _$clean = _y ]; then
-            if [ -d $source/out ]; then
-                chown $username $source/out
-                rm -rf $source/out/*
+        if [ -d $source/out ]; then
+            chown $username $source/out || true
+            if [ _$clean = _1 -o _$clean = _y ]; then
+                (cd $source/out && find . -maxdepth 1 ! -path . -print0| xargs --no-run-if-empty -0 rm -rf)
             fi
         fi
         if [ _$ccache = _1 -o _$ccache = _y ]; then
@@ -49,7 +49,8 @@ if [ $# -ge 1 ]; then
                 export CCACHE_EXEC
             fi
         fi
-        exec chroot --userspec=$username:$(cat /root/username) / /bin/bash "$@"
+        cd ${source} || true
+        exec chroot --skip-chdir --userspec=$username:$(cat /root/username) / /bin/bash "$@"
     fi
 fi
 exec "$@"
