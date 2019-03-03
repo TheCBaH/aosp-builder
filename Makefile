@@ -88,7 +88,7 @@ emulator.%:
 build.%:
 	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
-	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time nice make -j${BUILD_JOBS}'
+	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && time nice make -j${BUILD_JOBS} ${BUILD_TARGET}'
 
 image.%:
 	-docker container kill ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@))
@@ -118,6 +118,7 @@ image.oreo-dev: done-image.pie-release
 image.oreo-cts-dev: done-image.oreo-dev
 image.android-8+1+0_r53: done-image.oreo-dev
 image.android-9+0+0_r33: done-image.pie-release
+image.android-9+0+0_r32: done-image.android-9+0+0_r33
 
 build_master: build.master.aosp_arm64  build.master.aosp_arm
 
@@ -139,3 +140,11 @@ volumes:
 	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_mirror-master ${AOSP_PREFIX}_mirror-master
 	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_ccache
 	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out  ${AOSP_PREFIX}_out
+
+volumes.overlay:
+	-docker volume rm ${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay
+	(cd ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay && sudo find . -maxdepth 1 ! -path . -print0| xargs --no-run-if-empty -0 rm -rf)
+	(cd ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay.data && sudo sh -c 'find . -maxdepth 1 -type d ! -path . -print0| xargs --no-run-if-empty -0 chmod +wrx')
+	(cd ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay.data && sudo sh -c 'find . -maxdepth 1 ! -path . -print0| xargs --no-run-if-empty -0 rm -rf')
+	docker volume create --driver local --opt type=overlay \
+		--opt o='lowerdir=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID},upperdir=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay,workdir=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay.data' --opt device=overlay ${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay
