@@ -9,6 +9,8 @@ RUN set -eux; \
     chmod a+x /usr/local/bin/repo; \
     groupadd -g $groupid $username; \
     useradd -m -u $userid -g $groupid $username; \
+    usermod -aG sudo $username; \
+    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers; \
     echo $username >/root/username; \
 	git config --global color.ui false; \
     cp /root/.gitconfig /home/$username/; \

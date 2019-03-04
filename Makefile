@@ -80,10 +80,14 @@ run.%:
 	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $@))) build ${RUN_ARGS}
 
 emulator.%:
-	docker run ${DOCKER_RUN_ARGS} --device /dev/kvm -v /tmp/.X11-unix:/tmp/.X11-unix --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
+	docker run ${DOCKER_RUN_ARGS} --device /dev/kvm -v /tmp/.X11-unix:/tmp/.X11-unix --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$(suffix $@))) \
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
 	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build -c \
 	'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && env DISPLAY=${DISPLAY} emulator -verbose -no-snapshot -show-kernel -noaudio ${EMULATOR_ARGS}'
+
+exec.%:
+	docker exec -i${TERMINAL} ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$(suffix $@))) /root/entrypoint.sh build -c \
+		'source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && exec bash'
 
 build.%:
 	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
