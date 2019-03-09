@@ -1,5 +1,6 @@
 FROM ubuntu:18.04
 RUN set -eux;\
+ export http_proxy=$HTTP_PROXY; \
  apt-get update; apt-get install -y \
  bison \
  build-essential \

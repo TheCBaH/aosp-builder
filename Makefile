@@ -1,5 +1,5 @@
 all: test
-ID_OFFSET=10
+ID_OFFSET:=$(shell id -u xocker 2</dev/null || echo 0)
 UID:=$(shell expr $$(id -u) - ${ID_OFFSET})
 GID:=$(shell expr $$(id -g) - ${ID_OFFSET})
 USER:=$(shell id -un)
@@ -10,14 +10,14 @@ MIRROR=/home/${USER}/aosp/mirror
 SOURCE=/home/${USER}/source
 MIRROR_MANIFEST=${MIRROR}/platform/manifest
 ORIGIN=https://android.googlesource.com/platform/manifest
-AOSP_VOLUME_DIR?=/data/docker
+AOSP_VOLUME_DIR?=/data/aosp
 AOSP_IMAGE?=aosp
 AOSP_PREFIX?=$(subst /,_,${AOSP_IMAGE})
 RUN_ARGS?=${BUILD_ARGS}
 CCACHE_CONFIG=--max-size=104G --set-config=compression=true
 
 linux:
-	docker build -f Dockerfile-linux -t ${AOSP_IMAGE}:linux .
+	docker build --build-arg HTTP_PROXY=${http_proxy} -f Dockerfile-linux -t ${AOSP_IMAGE}:linux .
 
 user: linux
 	cp ~/.gitconfig .
