@@ -2,7 +2,7 @@
 set -exu
 echo "$@"
 if [ $# -ge 1 ]; then
-    if [ $1 = build ]; then
+    if [ "$1" = build ]; then
         shift;
         ccache=y
         clean=n
@@ -50,7 +50,12 @@ if [ $# -ge 1 ]; then
             fi
         fi
         cd ${source} || true
-        exec chroot --skip-chdir --userspec=$username:$(cat /root/username) / /bin/bash "$@"
+        exec chroot --skip-chdir --userspec=$username:$username / /bin/bash "$@"
+    fi
+    if [ "$1" = run ]; then
+        shift
+        username=$(cat /root/username)
+        exec chroot --skip-chdir --userspec=$username:$username / "$@"
     fi
 fi
 exec "$@"
