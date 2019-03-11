@@ -55,6 +55,10 @@ if [ $# -ge 1 ]; then
     if [ "$1" = run ]; then
         shift
         username=$(cat /root/username)
+        HOME=/home/$username
+        export HOME
+        USER=$username
+        export USER
         exec chroot --skip-chdir --userspec=$username:$username / "$@"
     fi
 fi
