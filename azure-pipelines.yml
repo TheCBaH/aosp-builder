@@ -10,7 +10,7 @@ jobs:
         vmImage: 'Ubuntu-16.04'
 
     variables:
-        system.debug: 'true'
+        system.debug: 'false'
 
     displayName: 'Android Master'
     timeoutInMinutes: 360
@@ -19,32 +19,33 @@ jobs:
             set -eux
             df -h
             sudo fdisk -l
-            false
+            sudo mkdir /data/aosp
+            sudo chown $USER /data/aosp
             docker info
-            git config --global user.name TheCBaH
-            make ccache
-            make mirror.master
-          displayName: 'Setting up mirror'
+            git config --global user.name $USER
+            make user
+          displayName: 'Preparing image'
 
         - script: |
-            set -eux
-            make image.master
-          displayName: 'Build Image'
+            make master.mirror-root-volume master.mirror-root
+            du -sh /data/aosp/mirror.root/master
+            df -h /data
+          displayName: 'Preparing Root Mirror'
 
         - script: |
-            set -eux
-            make build.master
-          displayName: 'build master'
+            make master.mirror-volume master.mirror
+            du -sh /data/aosp/mirror/master
+            df -h /data
+          displayName: 'Preparing Mirror'
 
         - script: |
-            set -eux
-            make image.pie-release
-            make build_pie-release
-          displayName: 'build pie-release'
+            make master.source-root-volume master.source.root
+            du -sh /data/aosp/source.root/master/
+            df -h /data
+          displayName: 'Master Root Source'
 
         - script: |
-            set -eux
-            make image.oreo-dev
-            make java.8.oreo-dev
-            make build_oreo-dev
-          displayName: 'build  oreo-dev'
+            make master.source-volume master.source
+            du -sh /data/aosp/source/master
+            df -h /data
+          displayName: 'Master Source'
