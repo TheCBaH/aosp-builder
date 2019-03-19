@@ -1,11 +1,13 @@
 all: test
 ID_OFFSET:=$(shell id -u docker 2</dev/null || echo 0)
-UID:=$(shell expr $$(id -u) - ${ID_OFFSET})
-GID:=$(shell expr $$(id -g) - ${ID_OFFSET})
+UID:=$(shell id -u)
+GID:=$(shell id -g)
+KVM_GID:=$(shell (getent group kvm || echo x:x:0) | awk -F: '{print $$3}')
 USER:=$(shell id -un)
 TERMINAL:=$(shell test -t 0 && echo t)
-SYNC_JOBS?=4
-BUILD_JOBS?=$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+CPU_CORES?=$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+SYNC_JOBS?=$(shell [ ${CPU_CORES} -ge 4 ] && echo 4 || echo ${CPU_CORES})
+BUILD_JOBS?=${CPU_CORES}
 MIRROR=/home/${USER}/aosp/mirror
 SOURCE=/home/${USER}/source
 MIRROR_MANIFEST=${MIRROR}/platform/manifest
@@ -21,16 +23,8 @@ linux:
 
 user: linux
 	cp ~/.gitconfig .
-	docker build --build-arg userid=${UID} --build-arg image=${AOSP_IMAGE} --build-arg groupid=${GID} --build-arg username=${USER} -f Dockerfile-$@ -t ${AOSP_IMAGE}:$@ .
+	docker build --build-arg id_offset=${ID_OFFSET} --build-arg kvm_gid=${KVM_GID}  --build-arg userid=${UID} --build-arg image=${AOSP_IMAGE} --build-arg groupid=${GID} --build-arg username=${USER} -f Dockerfile-$@ -t ${AOSP_IMAGE}:$@ .
 	rm .gitconfig
-
-_mirror.master: user
-	-docker volume create ${AOSP_PREFIX}_$(subst .,-,$@)
-	docker run ${DOCKER_RUN_ARGS} -i${TERMINAL} --rm --name ${AOSP_PREFIX}_$@ -v ${AOSP_PREFIX}_$(subst .,-,$@):${MIRROR} ${AOSP_IMAGE}:$< bash -euxc \
-		"chown ${USER} ${MIRROR};exec chroot --userspec ${USER}:${GID} / /bin/bash -euxc \
-		'export HOME=/home/${USER};id;cd ${MIRROR};repo init -u ${ORIGIN} -b $(subst .,,$(suffix $@)) \
-		;time repo sync -c --network-only --no-clone-bundle --no-tags -j${SYNC_JOBS}'"
-	touch done-$@
 
 ccache: user
 	-docker volume create ${AOSP_PREFIX}_$@

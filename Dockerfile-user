@@ -1,14 +1,21 @@
 ARG image
 FROM $image:linux
+ARG id_offset
+ARG kvm_gid
 ARG userid
 ARG groupid
 ARG username
 COPY entrypoint.sh .gitconfig /root/
 RUN set -eux; \
     curl -o /usr/local/bin/repo https://storage.googleapis.com/git-repo-downloads/repo; \
-    chmod a+x /usr/local/bin/repo; \
-    groupadd -g $groupid $username; \
-    useradd -m -u $userid -g $groupid $username; \
+    chmod a+x /usr/local/bin/repo;\
+    id_offset=$id_offset;\
+    gid=$(expr $groupid - $id_offset);\
+    uid=$(expr $userid - $id_offset);\
+    kvm_gid=$(expr $kvm_gid - $id_offset||true);\
+    groupadd -g $gid $username;\
+    useradd -m -u $uid -g $gid $username;\
+    [ $kvm_gid -ge 1 ] && groupadd -g $kvm_gid kvm && usermod -aG kvm $username; \
     usermod -aG sudo $username; \
     echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers; \
     echo $username >/root/username; \
