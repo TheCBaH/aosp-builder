@@ -17,6 +17,7 @@ AOSP_IMAGE?=aosp
 AOSP_PREFIX?=$(subst /,_,${AOSP_IMAGE})
 RUN_ARGS?=${BUILD_ARGS}
 CCACHE_CONFIG=--max-size=104G --set-config=compression=true
+OUT_VOLUME?=${AOSP_PREFIX}_out:
 
 linux:
 	docker build --build-arg HTTP_PROXY=${http_proxy} -f Dockerfile-linux -t ${AOSP_IMAGE}:linux .
@@ -188,14 +189,8 @@ master.mirror-root-volume:
 	--opt o='lowerdir=${AOSP_VOLUME_DIR}/mirror.root/$(basename $@)$(subst ${space},,$(foreach p,$?,:${AOSP_VOLUME_DIR}/mirror.root/${p})),upperdir=${AOSP_VOLUME_DIR}/mirror/$(basename $@),workdir=${AOSP_VOLUME_DIR}/mirror/$(basename $@).work' --opt device=overlay ${AOSP_PREFIX}_$(basename $@).mirror
 
 volumes:
+	mkdir -p ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_ccache ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out 
 	-docker volume rm ${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_out
 	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_ccache
 	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out  ${AOSP_PREFIX}_out
 
-volumes.overlay:
-	-docker volume rm ${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay
-	(cd ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay && sudo find . -maxdepth 1 ! -path . -print0| xargs --no-run-if-empty -0 rm -rf)
-	(cd ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay.data && sudo sh -c 'find . -maxdepth 1 -type d ! -path . -print0| xargs --no-run-if-empty -0 chmod +wrx')
-	(cd ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay.data && sudo sh -c 'find . -maxdepth 1 ! -path . -print0| xargs --no-run-if-empty -0 rm -rf')
-	docker volume create --driver local --opt type=overlay \
-		--opt o='lowerdir=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID},upperdir=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay,workdir=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay.data' --opt device=overlay ${AOSP_PREFIX}_out${AOSP_VOLUME_ID}.overlay
