@@ -27,6 +27,13 @@ jobs:
           displayName: 'Preparing image'
 
         - script: |
+            make volumes ccache ccache.stats
+            make ccache.clear
+            make ccache.config
+            make ccache ccache.stats
+          displayName: 'Setting ccache'
+
+        - script: |
             make master.mirror-root-volume master.mirror-root
             du -sh /data/aosp/mirror.root/master
             df -h /data
@@ -48,6 +55,7 @@ jobs:
             make master.source-volume master.source
             du -sh /data/aosp/source/master
             df -h /data
+            du -sh /data/aosp/aosp_out
           displayName: 'Master Source'
         - script: |
             make master.sync
