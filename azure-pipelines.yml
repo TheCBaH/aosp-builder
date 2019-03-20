@@ -60,7 +60,7 @@ jobs:
 
         - script: |
             make master.sync
-          displayName: 'sync'
+          displayName: 'Master Sync'
 
         - script: |
             make master.build BUILD_TARGET=nothing
