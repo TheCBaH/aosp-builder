@@ -103,7 +103,7 @@ master.source.root: user
 
 %.build:
 	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
-	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache -v ${AOSP_PREFIX}_$(basename $(basename $@)).source:${SOURCE} \
+	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache -v ${AOSP_PREFIX}_$(basename $(basename $@)).source:${SOURCE}:ro \
 	${AOSP_IMAGE}:user build ${BUILD_ARGS} -c 'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $(basename $@))) && time nice make -j${BUILD_JOBS} ${BUILD_TARGET}'
 
 %.run:
