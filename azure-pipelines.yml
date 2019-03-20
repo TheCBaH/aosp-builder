@@ -57,9 +57,11 @@ jobs:
             df -h /data
             du -sh /data/aosp/aosp_out
           displayName: 'Master Source'
+
         - script: |
             make master.sync
-          displayName: 'sybc'
+          displayName: 'sync'
+
         - script: |
             make master.build BUILD_TARGET=nothing
           displayName: 'Build nothing'
