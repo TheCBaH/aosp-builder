@@ -94,8 +94,8 @@ master.source.root: user
 	touch done-$@
 
 %.sync:
-	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_master.mirror:${MIRROR}:ro \
-	-v ${AOSP_PREFIX}_$(basename $(basename $@)).source:${SOURCE} ${AOSP_IMAGE}:user build -c 'set -eux;\
+	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
+	-v ${AOSP_PREFIX}_$(basename $@).source:${SOURCE} ${AOSP_IMAGE}:user  build -c 'set -eux;cd ${SOURCE};\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
 
