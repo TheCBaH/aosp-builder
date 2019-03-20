@@ -49,3 +49,9 @@ jobs:
             du -sh /data/aosp/source/master
             df -h /data
           displayName: 'Master Source'
+        - script: |
+            make master.sync
+          displayName: 'sybc'
+        - script: |
+            make master.build BUILD_TARGET=nothing
+          displayName: 'Build nothing'
