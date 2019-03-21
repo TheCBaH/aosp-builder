@@ -65,7 +65,7 @@ test: user ccache
 master.source.root: user
 	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_master.mirror:${MIRROR}:ro \
 	-v ${AOSP_PREFIX}_$@:${SOURCE} ${AOSP_IMAGE}:user  build -c 'set -eux;cd ${SOURCE};\
-	repo init -u ${ORIGIN} --reference=${MIRROR} ;mkdir -p out;\
+	repo init -u ${ORIGIN} --reference=${MIRROR} ;mkdir out;\
 	time repo sync --network-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	time repo sync --local-only --current-branch --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	echo DONE'
