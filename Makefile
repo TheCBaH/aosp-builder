@@ -82,7 +82,7 @@ master.source.root: user
 %.source.root:
 	docker run ${DOCKER_RUN_ARGS} --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst .,-,$@) -v ${AOSP_PREFIX}_master.mirror:${MIRROR}:ro \
 	-v ${AOSP_PREFIX}_$@:${SOURCE} ${AOSP_IMAGE}:user  build -c 'set -eux;cd ${SOURCE};\
-	repo init -u ${ORIGIN} -b $(basename $(basename $@)); mkdir out;\
+	repo init -u ${ORIGIN} -b $(basename $(basename $@)); mkdir -p out;\
 	time repo sync -c --no-clone-bundle --no-tags -j${SYNC_JOBS};\
 	find . -type l -name Android\* -not -readable -delete;repo sync -c --local-only -j${SYNC_JOBS};\
 	echo DONE'
