@@ -50,12 +50,6 @@ run: user
 
 
 
-emulator.%:
-	docker run ${DOCKER_RUN_ARGS} --device /dev/kvm -v /tmp/.X11-unix:/tmp/.X11-unix --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$(suffix $@))) \
-	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache \
-	${AOSP_IMAGE}:$(subst +,.,$(subst .,,$(suffix $(basename $@)))) build -c \
-	'cd ${SOURCE}; source build/envsetup.sh;lunch $(subst .,,$(suffix $@)) && env DISPLAY=${DISPLAY} emulator -verbose -no-snapshot -show-kernel -noaudio ${EMULATOR_ARGS}'
-
 
 java.8.oreo-dev:
 	docker build --build-arg branch=$(subst .,,$(suffix $@)) --build-arg image=${AOSP_IMAGE} --build-arg jdk=$(subst .,,$(suffix $(basename $@))) -f Dockerfile-jdk -t ${AOSP_IMAGE}:$(subst .,,$(suffix $@)) .
@@ -110,6 +104,13 @@ master.source.root: user
 	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_ccache:/ccache -v ${AOSP_PREFIX}_mirror-master:${MIRROR}:ro \
 	-v ${AOSP_PREFIX}_$(basename $(basename $@)).source:${SOURCE} \
 	${AOSP_IMAGE}:user build ${RUN_ARGS}
+
+%.emulator:
+	docker run ${DOCKER_RUN_ARGS} --device /dev/kvm -v /tmp/.X11-unix:/tmp/.X11-unix --rm -i${TERMINAL} --name ${AOSP_PREFIX}_$(subst +,.,$(subst .,-,$@)) \
+	-v ${OUT_VOLUME}${SOURCE}/out -v ${AOSP_PREFIX}_$(basename $(basename $@)).source:${SOURCE}:ro \
+	${AOSP_IMAGE}:user build -c \
+	'source build/envsetup.sh;lunch $(subst .,,$(suffix $(basename $@))) && env DISPLAY=${DISPLAY} emulator -verbose -no-snapshot -show-kernel -noaudio ${EMULATOR_ARGS}'
+
 
 %.mirror:user
 	-docker volume create ${AOSP_PREFIX}_$(subst .,-,$@)
