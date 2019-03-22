@@ -190,8 +190,8 @@ master.mirror-root-volume:
 	--opt o='lowerdir=${AOSP_VOLUME_DIR}/mirror.root/$(basename $@)$(subst ${space},,$(foreach p,$?,:${AOSP_VOLUME_DIR}/mirror.root/${p})),upperdir=${AOSP_VOLUME_DIR}/mirror/$(basename $@),workdir=${AOSP_VOLUME_DIR}/mirror/$(basename $@).work' --opt device=overlay ${AOSP_PREFIX}_$(basename $@).mirror
 
 volumes:
-	mkdir -p ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_ccache ${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out
+	mkdir -p ${AOSP_VOLUME_DIR}/out/${AOSP_PREFIX}_ccache ${AOSP_VOLUME_DIR}/out/${AOSP_PREFIX}_out
 	-docker volume rm ${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_out
-	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_ccache
-	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/${AOSP_PREFIX}_out  ${AOSP_PREFIX}_out
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/out/${AOSP_PREFIX}_ccache ${AOSP_PREFIX}_ccache
+	docker volume create --driver local --opt type=bind --opt o=bind --opt device=${AOSP_VOLUME_DIR}/out/${AOSP_PREFIX}_out  ${AOSP_PREFIX}_out
 
