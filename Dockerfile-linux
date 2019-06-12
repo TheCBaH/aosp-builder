@@ -7,9 +7,9 @@ RUN set -eux;\
  ccache \
  curl \
  flex \
+ g++-multilib \
  gcc-multilib \
  git-core \
- g++-multilib \
  gnupg \
  gperf \
  lib32ncurses5-dev \
@@ -23,11 +23,12 @@ RUN set -eux;\
  libxml2-utils \
  protobuf-compiler \
  python \
- python3 \
  python-dev \
  python-pip \
  python-protobuf \
  python-virtualenv \
+ python3 \
+ rsync \
  sudo \
  unzip \
  x11proto-core-dev \
